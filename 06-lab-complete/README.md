@@ -47,17 +47,31 @@ Kết hợp TẤT CẢ những gì đã học trong 1 project hoàn chỉnh.
 cp .env.example .env
 
 # 2. Chạy với Docker Compose
-docker compose up
+docker compose up --build
 
 # 3. Test
-curl http://localhost/health
+curl http://localhost:8000/health
 
 # 4. Lấy API key từ .env, test endpoint
-API_KEY=$(grep AGENT_API_KEY .env | cut -d= -f2)
-curl -H "X-API-Key: $API_KEY" \
-     -X POST http://localhost/ask \
-     -H "Content-Type: application/json" \
-     -d '{"question": "What is deployment?"}'
+$API_KEY = (Get-Content .env | Select-String '^AGENT_API_KEY=').ToString().Split('=')[1] # windown
+
+$API_KEY = (Get-Content .env | Select-String '^AGENT_API_KEY=').ToString().Split('=')[1] # Mac/linux
+
+echo $API_KEY
+
+# 5. test endpoint
+$headers = @{
+  "X-API-Key" = $API_KEY
+  "Content-Type" = "application/json"
+}
+
+$body = '{"question":"What is deployment?"}'
+
+Invoke-RestMethod `
+  -Uri "http://localhost:8000/ask" `
+  -Method POST `
+  -Headers $headers `
+  -Body $body
 ```
 
 ---
@@ -71,12 +85,13 @@ npm i -g @railway/cli
 # Login và deploy
 railway login
 railway init
+railway add # empty service
 railway variables set OPENAI_API_KEY=sk-...
 railway variables set AGENT_API_KEY=your-secret-key
 railway up
 
 # Nhận public URL!
-railway domain
+railway domain # ttps://agent-production-3fc5.up.railway.app
 ```
 
 ---

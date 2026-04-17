@@ -107,10 +107,14 @@ python app.py
 
 | Feature | Basic | Advanced | Tại sao quan trọng? |
 |---------|-------|----------|---------------------|
-| Config | Hardcode | Env vars | ... |
-| Health check |  |  | ... |
-| Logging | print() | JSON | ... |
-| Shutdown | Đột ngột | Graceful | ... |
+| Config | Hardcode trong code | Từ environment variables (PORT, DEBUG, OPENAI_API_KEY) | Tránh commit secrets, dễ đổi giữa dev/prod, an toàn với Git |
+| Health check | Không có | `@app.get("/health")` + `@app.get("/ready")` | Platform (Railway, Kubernetes) biết khi nào restart, readiness đảm bảo connection ready |
+| Logging | print() — khó parse | JSON structured logging | Log aggregators (Datadog, Loki, ELK) có thể parse, dễ search errors |
+| Shutdown | Đột ngột (Ctrl+C) | Lifespan context manager + SIGTERM handler | In-flight requests hoàn thành, sạch sẽ không lose data |
+| CORS | N/A | Configured via ALLOWED_ORIGINS | Bảo vệ từ cross-origin attacks, whitelist origins |
+| Host binding | localhost (chỉ local) | 0.0.0.0 (mọi interface) | Hoạt động trong container, nhận traffic từ bên ngoài |
+| Secrets | Hardcoded sk-key, password123 | Từ env var, không visible trong code | Nếu push lên GitHub → key bị lộ ngay lập tức |
+| Port | Cứng port 8000 | Từ PORT env var | Railway/Render inject PORT tự động, flexible |
 
 ###  Checkpoint 1
 
@@ -143,10 +147,19 @@ cd ../../02-docker/develop
 
 **Nhiệm vụ:** Đọc `Dockerfile` và trả lời:
 
-1. Base image là gì?
-2. Working directory là gì?
-3. Tại sao COPY requirements.txt trước?
-4. CMD vs ENTRYPOINT khác nhau thế nào?
+1. Base image là gì?  
+   **Trả lời:** `python:3.11` — Full Python distribution (~1GB), bao gồm cả pip, libraries phát triển
+
+2. Working directory là gì?  
+   **Trả lời:** `/app` — Nơi code sẽ được copy vào, tất cả commands sau đó chạy trong thư mục này
+
+3. Tại sao COPY requirements.txt trước?  
+   **Trả lời:** Docker layer cache — Nếu code thay đổi nhưng requirements.txt không đổi, layer pip cache được reuse thay vì cài lại tất cả (tiết kiệm thời gian build)
+
+4. CMD vs ENTRYPOINT khác nhau thế nào?  
+   **Trả lời:**
+   - `CMD`: Lệnh mặc định khi container start, có thể được override (`docker run app.py` sẽ override CMD)
+   - `ENTRYPOINT`: Lệnh luôn chạy, CMD là arguments cho ENTRYPOINT. Trong file này dùng `CMD ["python", "app.py"]` là đủ
 
 ###  Exercise 2.2: Build và run
 
@@ -175,9 +188,17 @@ cd ../production
 ```
 
 **Nhiệm vụ:** Đọc `Dockerfile` và tìm:
-- Stage 1 làm gì?
-- Stage 2 làm gì?
-- Tại sao image nhỏ hơn?
+- Stage 1 làm gì?  
+  **Trả lời:** Builder stage — cài build tools (gcc, libpq-dev), copy requirements.txt, chạy `pip install --user` để cài tất cả dependencies vào `/root/.local`
+
+- Stage 2 làm gì?  
+  **Trả lời:** Runtime stage — chỉ copy `/root/.local` từ builder sang, copy source code, tạo non-root user, loại bỏ tất cả build tools → image nhỏ và an toàn
+
+- Tại sao image nhỏ hơn?  
+  **Trả lời:**
+  - Builder stage có gcc, libpq-dev → ~300-500MB thêm
+  - Runtime chỉ lấy `.local` (~200-300MB packages) → image cuối ~400-500MB thay vì 1GB+
+  - Không còn build tools → image hoàn toàn stateless, không cách nào compile trong container (vừa an toàn vừa nhỏ)
 
 Build và so sánh:
 ```bash
@@ -190,20 +211,56 @@ docker images | grep my-agent
 **Nhiệm vụ:** Đọc `docker-compose.yml` và vẽ architecture diagram.
 
 ```bash
+cd ../production  # or wherever docker-compose.yml is
 docker compose up
 ```
 
-Services nào được start? Chúng communicate thế nào?
+Services nào được start? Chúng communicate thế nào?  
+
+**Mô tả Stack:**
+```
+┌──────────────────────────────────────────────┐
+│          Docker Compose Services              │
+├──────────────────────────────────────────────┤
+│  nginx (port 80)                             │
+│    ↓                                          │
+│  agent service (port 8000, 1 instance)      │
+│    ↓                                          │
+│  Shared network: my-network                  │
+└──────────────────────────────────────────────┘
+```
+
+- **Services:** nginx (reverse proxy) + agent
+- **Communication:** Via Docker network bridge — nginx forward requests đến agent:8000
+- **Volumes:** Optional — mount source code để development
+- **Environment:** Port, API key, environment variables
 
 Test:
 ```bash
-# Health check
+# Health check (qua Nginx)
 curl http://localhost/health
 
-# Agent endpoint
+# Agent endpoint  
 curl http://localhost/ask -X POST \
+  -H "X-API-Key: my-secret-key" \
   -H "Content-Type: application/json" \
   -d '{"question": "Explain microservices"}'
+
+# Hoặc direct đến agent
+curl http://localhost:8000/health
+```
+
+**Debug:**
+```bash
+# View logs
+docker compose logs -f agent
+
+# Access shell trong container
+docker compose exec agent /bin/bash
+
+# Check network
+docker network ls
+docker network inspect <network_name>
 ```
 
 ###  Checkpoint 2
@@ -299,7 +356,22 @@ cd ../render
 6. Set environment variables trong dashboard
 7. Deploy!
 
-**Nhiệm vụ:** So sánh `render.yaml` với `railway.toml`. Khác nhau gì?
+**Nhiệm vụ:** So sánh `render.yaml` với `railway.toml`. Khác nhau gì?  
+
+**Trả lời:**
+- **render.yaml**: YAML format, IaC style — define services, environment, ports
+- **railway.toml**: TOML format, simpler — focus on build + start commands
+- **Similarities**: Cả hai define PORT, environment variables, phải config secrets
+- **Render advantage**: Better free tier (750h/month), more config options
+- **Railway advantage**: Simpler, faster to deploy, có CLI tool
+
+**Test Public URL:**
+```bash
+curl https://your-render-domain/health
+curl -H "X-API-Key: your-secret-key" https://your-render-domain/ask -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Hello from Render"}'
+```
 
 ###  Exercise 3.3: (Optional) GCP Cloud Run (15 phút)
 
@@ -338,22 +410,32 @@ cd ../../04-api-gateway/develop
 ```
 
 **Nhiệm vụ:** Đọc `app.py` và tìm:
-- API key được check ở đâu?
-- Điều gì xảy ra nếu sai key?
-- Làm sao rotate key?
+- API key được check ở đâu?  
+  **Trả lời:** 
+  - Config: `API_KEY = os.getenv("AGENT_API_KEY", "demo-key-change-in-production")`
+  - Dependency function: `verify_api_key()` — kiểm tra header `X-API-Key`
+  - Endpoint: `@app.post("/ask")` sử dụng `_key: str = Depends(verify_api_key)` để require auth
+
+- Điều gì xảy ra nếu sai key?  
+  **Trả lời:** 
+  - Không gửi key → 401 Unauthorized: "Missing API key"
+  - Sai key → 403 Forbidden: "Invalid API key"
+
+- Làm sao rotate key?  
+  **Trả lời:** Đổi giá trị `AGENT_API_KEY` environment variable, deploy lại. Requests cũ sẽ bị 403 cho đến khi client update key
 
 Test:
 ```bash
 python app.py
 
-#  Không có key
+#  Không có key → 401
 curl http://localhost:8000/ask -X POST \
   -H "Content-Type: application/json" \
   -d '{"question": "Hello"}'
 
-#  Có key
+#  Có key → 200
 curl http://localhost:8000/ask -X POST \
-  -H "X-API-Key: secret-key-123" \
+  -H "X-API-Key: my-secret-key" \
   -H "Content-Type: application/json" \
   -d '{"question": "Hello"}'
 ```
@@ -365,14 +447,24 @@ cd ../production
 ```
 
 **Nhiệm vụ:** 
-1. Đọc `auth.py` — hiểu JWT flow
+1. Đọc `auth.py` — hiểu JWT flow  
+   **Mô tả:**
+   - JWT = JSON Web Token, format: `header.payload.signature`
+   - Payload chứa: username, role, expiry time (iat, exp)
+   - Server sign bằng SECRET_KEY → client không thể fake token
+   - Flow: Login lấy token → gửi token mỗi request → server decode + verify signature
+
 2. Lấy token:
 ```bash
+# Terminal 1: Start server
 python app.py
 
-curl http://localhost:8000/token -X POST \
+# Terminal 2: Login
+curl -X POST http://localhost:8000/auth/token \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "secret"}'
+  -d '{"username": "student", "password": "demo123"}'
+
+# Response: {"access_token": "eyJ0eXAiOiJKV1QiL...", "token_type": "bearer"}
 ```
 
 3. Dùng token để gọi API:
@@ -382,28 +474,49 @@ curl http://localhost:8000/ask -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"question": "Explain JWT"}'
+
+# Nếu token expired → 401 Unauthorized: "Token expired"
+# Nếu token invalid → 403 Forbidden: "Invalid token"
 ```
+
+**So sánh API Key vs JWT:**
+- API Key: Đơn giản, không expiry, dễ bị lộ nếu hardcode
+- JWT: Stateless, expiry built-in, có role/claims, phải keep SECRET_KEY an toàn
 
 ###  Exercise 4.3: Rate limiting
 
 **Nhiệm vụ:** Đọc `rate_limiter.py` và trả lời:
-- Algorithm nào được dùng? (Token bucket? Sliding window?)
-- Limit là bao nhiêu requests/minute?
-- Làm sao bypass limit cho admin?
+- Algorithm nào được dùng? (Token bucket? Sliding window?)  
+  **Trả lời:** Sliding Window Counter
+  - Mỗi user có 1 deque timestamps
+  - Mỗi request thêm timestamp vào deque
+  - Loại bỏ timestamps cũ (ngoài 60 giây)
+  - Nếu deque size ≥ max_requests → 429 Too Many Requests
+
+- Limit là bao nhiêu requests/minute?  
+  **Trả lời:**
+  - User: 10 requests/minute — `rate_limiter_user = RateLimiter(max_requests=10, window_seconds=60)`
+  - Admin: 100 requests/minute — `rate_limiter_admin = RateLimiter(max_requests=100, window_seconds=60)`
+
+- Làm sao bypass limit cho admin?  
+  **Trả lời:** Check `role` trong JWT token, dùng `rate_limiter_admin` thay vì `rate_limiter_user` trong @Depends
 
 Test:
 ```bash
-# Gọi liên tục 20 lần
-for i in {1..20}; do
+# Gọi liên tục 15 lần (limit 10)
+for i in {1..15}; do
   curl http://localhost:8000/ask -X POST \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d '{"question": "Test '$i'"}'
   echo ""
 done
-```
 
-Quan sát response khi hit limit.
+# Request 11-15 sẽ nhận 429 với header:
+# X-RateLimit-Limit: 10
+# X-RateLimit-Remaining: 0
+# Retry-After: 60
+```
 
 ###  Exercise 4.4: Cost guard
 
@@ -415,44 +528,37 @@ def check_budget(user_id: str, estimated_cost: float) -> bool:
     Return True nếu còn budget, False nếu vượt.
     
     Logic:
-    - Mỗi user có budget $10/tháng
-    - Track spending trong Redis
-    - Reset đầu tháng
+    - Mỗi user có budget $1/ngày (configurable)
+    - Global budget: $10/ngày (stop khi vượt)
+    - Track spending trong instance (in-memory)
+    - Reset đầu ngày mới (check timestamp)
+    - Warn khi dùng 80% budget
     """
-    # TODO: Implement
     pass
 ```
 
-<details>
-<summary> Solution</summary>
+**Giải thích code hiện tại:**
+- `UsageRecord`: Dataclass track input_tokens, output_tokens, cost mỗi ngày
+- `CostGuard` class:
+  - `daily_budget_usd=$1.0` — per user limit
+  - `global_daily_budget_usd=$10.0` — tổng cộng limit
+  - `warn_at_pct=0.8` — cảnh báo khi dùng 80%
+- `check_budget()`: 
+  - Nếu vượt global → 503 Service Unavailable
+  - Nếu vượt per-user → 402 Payment Required
+  - Còn budget → log warning nếu ≥ 80%
 
-```python
-import redis
-from datetime import datetime
-
-r = redis.Redis()
-
-def check_budget(user_id: str, estimated_cost: float) -> bool:
-    month_key = datetime.now().strftime("%Y-%m")
-    key = f"budget:{user_id}:{month_key}"
-    
-    current = float(r.get(key) or 0)
-    if current + estimated_cost > 10:
-        return False
-    
-    r.incrbyfloat(key, estimated_cost)
-    r.expire(key, 32 * 24 * 3600)  # 32 days
-    return True
-```
-
-</details>
+**Tại sao quan trọng?**
+- Tránh bill bất ngờ từ OpenAI (vd $1000/tháng)
+- Cho partner/customer access nhưng budget controlled
+- Disable service khi budget hết (safe fail)
 
 ###  Checkpoint 4
 
 - [ ] Implement API key authentication
-- [ ] Hiểu JWT flow
-- [ ] Implement rate limiting
-- [ ] Implement cost guard với Redis
+- [ ] Hiểu JWT flow + token expiry
+- [ ] Implement rate limiting (Sliding Window)
+- [ ] Implement cost guard (budget tracking)
 
 ---
 
@@ -526,15 +632,39 @@ import sys
 
 def shutdown_handler(signum, frame):
     """Handle SIGTERM from container orchestrator"""
-    # TODO:
+    global _is_ready
+    
     # 1. Stop accepting new requests
-    # 2. Finish current requests
-    # 3. Close connections
-    # 4. Exit
-    pass
+    _is_ready = False
+    logger.info("🔄 Graceful shutdown initiated...")
+    
+    # 2. Finish current requests (chờ in_flight_requests → 0)
+    timeout = 30
+    elapsed = 0
+    while _in_flight_requests > 0 and elapsed < timeout:
+        logger.info(f"Waiting for {_in_flight_requests} in-flight requests...")
+        time.sleep(1)
+        elapsed += 1
+    
+    # 3. Close connections (close Redis, DB, etc)
+    try:
+        r.close()  # Close Redis
+        logger.info("✅ Redis connection closed")
+    except:
+        pass
+    
+    # 4. Exit gracefully
+    logger.info("✅ Shutdown complete")
+    sys.exit(0)
 
 signal.signal(signal.SIGTERM, shutdown_handler)
 ```
+
+**Giải thích:**
+- `_is_ready = False` → /ready endpoint trả về 503, load balancer stop route traffic
+- Chờ requests hiện tại hoàn thành (tối đa 30s)
+- Close connections (Redis, database)
+- Exit với code 0 (success exit)
 
 Test:
 ```bash
@@ -569,11 +699,27 @@ conversation_history = {}
 def ask(user_id: str, question: str):
     history = conversation_history.get(user_id, [])
     # ...
+    conversation_history[user_id] = updated_history  # Lưu vào memory
+    
+# Vấn đề: Instance 1 lưu → Instance 2 không thấy!
 ```
 
 **Correct:**
 ```python
-#  State trong Redis
+#  State trong Redis (GOOD — scalable)
+import redis
+r = redis.from_url("redis://localhost:6379/0")
+
+def save_session(session_id: str, data: dict):
+    """Lưu session vào Redis."""
+    serialized = json.dumps(data)
+    r.setex(f"session:{session_id}", 3600, serialized)  # TTL 1 giờ
+
+def load_session(session_id: str) -> dict:
+    """Load session từ Redis."""
+    data = r.get(f"session:{session_id}")
+    return json.loads(data) if data else {}
+
 @app.post("/ask")
 def ask(user_id: str, question: str):
     history = r.lrange(f"history:{user_id}", 0, -1)
@@ -590,23 +736,66 @@ Tại sao? Vì khi scale ra nhiều instances, mỗi instance có memory riêng.
 docker compose up --scale agent=3
 ```
 
-Quan sát:
-- 3 agent instances được start
-- Nginx phân tán requests
-- Nếu 1 instance die, traffic chuyển sang instances khác
-
-Test:
-```bash
-# Gọi 10 requests
-for i in {1..10}; do
-  curl http://localhost/ask -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"question": "Request '$i'"}'
-done
-
-# Check logs — requests được phân tán
-docker compose logs agent
+**Architecture:**
 ```
+┌──────────┐
+│  Client  │
+└────┬─────┘
+     │ HTTP requests
+     ▼
+┌───────────┐              ┌──────────┐
+│   Nginx   │ ─reverse proxy─│ Agent 1  │ (port 8000)
+│ port 8080 │              ├──────────┤
+│ (LB)      │              │ Agent 2  │ (port 8000)
+│           │              ├──────────┤
+│ Round-    │              │ Agent 3  │ (port 8000)
+│ robin     │              └──────────┘
+│ algo      │                   ▲
+│           │                   │
+│upstream   │                   │
+│agent:8000 ├───────────────────┘
+└───────────┘
+     │
+     ├──────────────────┐
+     ▼                  ▼
+  ┌──────────┐    ┌──────────┐
+  │  Redis   │    │ Network  │
+  │ 6379     │    │ bridge   │
+  └──────────┘    └──────────┘
+```
+
+**Observations:**
+- **3 agent instances** được start (`--scale agent=3`)
+- **Nginx** act as reverse proxy + load balancer
+- **Round-robin**: Request 1→Agent1, Request 2→Agent2, Request 3→Agent3, Request 4→Agent1, ...
+- **Docker Compose DNS**: `upstream agent:8000` → Docker DNS tự resolve sang tất cả agent instances
+- **Healthcheck**: Nginx tự skip instances không healthy
+- **Stateless**: Mỗi request có thể đi đến instance khác, nhưng session trong Redis → consistent
+
+**Nginx configuration (từ nginx.conf):**
+```nginx
+upstream agent_cluster {
+    server agent:8000;  # Docker DNS → resolve sang agent1, agent2, agent3
+    keepalive 16;       # Connection pooling
+}
+
+server {
+    listen 80;
+    
+    location / {
+        proxy_pass http://agent_cluster;
+        proxy_next_upstream error timeout http_503;  # Retry nếu fail
+        proxy_next_upstream_tries 3;                 # Tối đa 3 tries
+    }
+}
+```
+
+Quan sát:
+- **X-Served-By header**: Mỗi response có header `X-Served-By: <instance_ip>` → thấy rõ load phân tán
+- **3 agent instances được start**, Nginx xử lý traffic, Redis shared state
+- **Nếu 1 instance die**, Nginx tự skip → traffic vẫn tiếp tục đến 2 instances còn lại
+
+Test (xem trong test section bên dưới)
 
 ###  Exercise 5.5: Test stateless
 
