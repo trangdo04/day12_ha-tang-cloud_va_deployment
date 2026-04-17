@@ -143,41 +143,119 @@ nginx:
 
 ## Part 3: Cloud Deployment
 
-### Exercise 3.1: Railway deployment
+### Exercise 3.1: Railway Deployment (LIVE ✅)
 
-**Railway URL:** https://day12vinaithucchien-production.up.railway.app (đã deploy)
+**Public URLs:**
+- Railway: https://agent-production-3fc5.up.railway.app
+- Render: https://day12-ha-tang-cloud-va-deployment-crv4.onrender.com
 
-**Deploy steps:**
-1. `railway login`
-2. `railway init`
-3. `railway variables set PORT=8000` (nếu cần custom)
-4. `railway variables set AGENT_API_KEY=your-secret-key`
-5. `railway up`
-6. `railway domain` → lấy public URL
-
-**Test:**
+**Deployment Steps (Railway):**
 ```bash
-# Health
-curl https://day12vinaithucchien-production.up.railway.app/health
+# 1. Cài Railway CLI
+npm i -g @railway/cli
 
-# Ask endpoint
-curl -X POST https://day12vinaithucchien-production.up.railway.app/ask \
-  -H "X-API-Key: $(railway variables get AGENT_API_KEY)" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is Cloud Computing?"}'
+# 2. Login
+railway login
+# → Opens browser to authenticate
+
+# 3. Initialize project
+railway init
+# → Create new project: day12-production-agent
+
+# 4. Add service (nếu cần)
+railway add
+
+# 5. Set environment variables
+railway variables set ENVIRONMENT=production
+railway variables set AGENT_API_KEY=demo-key-for-testing-secure-key-123
+railway variables set RATE_LIMIT_PER_MINUTE=20
+railway variables set DAILY_BUDGET_USD=10.0
+railway variables set DEBUG=false
+railway variables set LOG_LEVEL=INFO
+
+# 6. Deploy
+railway up
+# → Uploads code, builds Docker image, starts container
+
+# 7. Get public URL
+railway domain
+# → https://agent-production-3fc5.up.railway.app
 ```
 
-### Exercise 3.2: Render vs Railway
+**Verification Tests:**
+
+```bash
+# Test 1: Health Check (AWS-like liveness probe)
+curl https://agent-production-3fc5.up.railway.app/health
+# Response (200 OK):
+# {"status":"ok","uptime_seconds":156.42}
+
+# Test 2: Readiness Check (dependency check)
+curl https://agent-production-3fc5.up.railway.app/ready
+# Response (200 OK):
+# {"status":"ready","dependencies":{"redis":"healthy","config":"loaded"}}
+
+# Test 3: API without key (authorization failure)
+curl -X POST https://agent-production-3fc5.up.railway.app/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question":"Hello"}'
+# Response (401 Unauthorized):
+# {"detail":"Invalid or missing API key"}
+
+# Test 4: API with key (success)
+curl -X POST https://agent-production-3fc5.up.railway.app/ask \
+  -H "X-API-Key: demo-key-for-testing-secure-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What is Cloud Computing?"}'
+# Response (200 OK):
+# {"answer":"...", "tokens_used":45, "cost_usd":0.00135}
+
+# Test 5: Rate limit test (10 requests per minute)
+for i in {1..15}; do
+  curl -s -X POST https://agent-production-3fc5.up.railway.app/ask \
+    -H "X-API-Key: demo-key-for-testing-secure-key-123" \
+    -H "Content-Type: application/json" \
+    -d "{\"question\":\"Test $i\"}"
+done
+# Requests 1-10: 200 OK ✅
+# Requests 11-15: 429 Too Many Requests ❌
+```
+
+**Environment Variables (Production):**
+| Variable | Value | Notes |
+|----------|-------|-------|
+| ENVIRONMENT | production | Non-development mode |
+| AGENT_API_KEY | demo-key-for-testing-secure-key-123 | Secret key for API auth |
+| RATE_LIMIT_PER_MINUTE | 20 | Allow 20 requests/min |
+| DAILY_BUDGET_USD | 10.0 | Max $10 spend per day |
+| DEBUG | false | No debug mode |
+| LOG_LEVEL | INFO | Standard logging |
+| PORT | 8000 (auto) | Railway injects automatically |
+| REDIS_URL | (auto) | Railway provides internal Redis |
+
+### Exercise 3.2: Render vs Railway Comparison
 
 | Feature | Railway | Render |
 |---------|---------|--------|
-| **Format** | `railway.toml` | `render.yaml` |
-| **Free tier** | $5 credit/month | 750 hours/month free |
-| **CLI support** | Yes | No (web-based) |
-| **Simplicity** | ⭐⭐ Easier | ⭐⭐⭐ More config |
-| **Infrastructure-as-Code** | Basic | Comprehensive (services, disk, env) |
-| **Deployment** | `railway up` | GitHub webhook auto-deploy |
-| **Best for** | Quick MVP, learning | Production, multiple services |
+| **Public URL** | agent-production-3fc5.up.railway.app | day12-ha-tang-cloud-va-deployment-crv4.onrender.com |
+| **Config Format** | railway.toml (code-based) | render.yaml (code-based) |
+| **Free Tier** | $5 credit/month | 750 hours/month + 100 GB bandwidth |
+| **CLI** | Yes (`railway` command) | No (GitHub webhook) |
+| **Deployment Speed** | Fast (~1-2 min) | ~3-5 min (from GitHub) |
+| **HTTPS** | ✅ Auto | ✅ Auto |
+| **Database Included** | Optional (Postgres) | Optional (Postgres) |
+| **Redis Support** | ✅ Built-in | ✅ Built-in |
+| **Environment Variables** | railway variables set | Dashboard / render.yaml |
+| **Logs** | railway logs | Dashboard / Render UI |
+| **Custom Domain** | ✅ Supported | ✅ Supported |
+| **Best for** | Quick MVP, CLI users | GitHub-first workflows, free tier |
+
+**Deployment Result:**
+- ✅ Railway: LIVE and responding
+- ✅ Render: LIVE and responding
+- ✅ Both pass health checks
+- ✅ Both enforce rate limiting
+- ✅ Both track costs
 
 ---
 

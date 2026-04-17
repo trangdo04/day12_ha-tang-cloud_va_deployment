@@ -5,9 +5,40 @@
 **Railway**:  https://agent-production-3fc5.up.railway.app
 
 **Render**: https://day12-ha-tang-cloud-va-deployment-crv4.onrender.com/
+
 ## Platform Information
 
 **Platform:** Railway  / Render
+
+
+## Test Commands
+
+### Health Check
+```bash
+curl https://agent-production-3fc5.up.railway.app/health
+# Expected: {"status": "ok"}
+```
+
+```bash
+curl https://day12-ha-tang-cloud-va-deployment-crv4.onrender.com/health
+# Expected: {"status": "ok"}
+```
+
+## Environment Variables Set
+- **PORT**: 8000 (Railway/Render inject automatically)
+- **ENVIRONMENT**: production
+- **REDIS_URL**: redis://redis:6379 (internal)
+- **AGENT_API_KEY**: demo-key-for-testing-secure-key-123
+- **LOG_LEVEL**: INFO
+- **DEBUG**: false
+- **RATE_LIMIT_PER_MINUTE**: 20
+- **DAILY_BUDGET_USD**: 10.0
+
+## screenshot
+
+- `screenshot/03_railway_production_docs.png` — Railway deployment dashboard
+- `screenshot/06_lab_production.png` — Lab 06 running 
+- `screenshot/06_lab_production_docs.png` — Render deployment dashboard
 
 ---
 
@@ -45,9 +76,14 @@ railway domain
 1. Push repo lên GitHub
 2. Render Dashboard → New → Blueprint
 3. Connect repo → Render đọc `render.yaml`
-4. Set secrets: 
-   - `OPENAI_API_KEY` = your-open-api-key
-   - `AGENT_API_KEY` = your-secret-key
+4. Set secrets in Render dashboard:
+   - `ENVIRONMENT` = production
+   - `AGENT_API_KEY` = demo-key-for-testing-secure-key-123
+   - `RATE_LIMIT_PER_MINUTE` = 20
+   - `DAILY_BUDGET_USD` = 10.0
+   - `DEBUG` = false
+   - `LOG_LEVEL` = INFO
+   - `REDIS_URL` = Auto-provided by Render
 5. Deploy → Nhận URL!
 
 ---

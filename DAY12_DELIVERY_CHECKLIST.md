@@ -1,8 +1,8 @@
 #  Delivery Checklist — Day 12 Lab Submission
 
 > **Student Name:** Đỗ Thị Thùy Trang
-> **Student ID:** _________________________  
-> **Date:** _________________________
+> **Student ID:** 2A202600041
+> **Date:** 17/04/2026
 
 ---
 
@@ -108,10 +108,12 @@ Create a file `DEPLOYMENT.md` with your deployed service information:
 # Deployment Information
 
 ## Public URL
-https://agent-production-3fc5.up.railway.app
+Railway: https://agent-production-3fc5.up.railway.app
+
+Render: https://day12-ha-tang-cloud-va-deployment-crv4.onrender.com/
 
 ## Platform
-Railway / Render / Cloud Run
+Railway / Render
 
 ## Test Commands
 
