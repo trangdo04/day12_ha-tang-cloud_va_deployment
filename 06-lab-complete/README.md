@@ -91,7 +91,7 @@ railway variables set AGENT_API_KEY=your-secret-key
 railway up
 
 # Nhận public URL!
-railway domain # ttps://agent-production-3fc5.up.railway.app
+railway domain # https://agent-production-3fc5.up.railway.app/
 ```
 
 ---
