@@ -1,7 +1,9 @@
 #  Delivery Checklist — Day 12 Lab Submission
 
 > **Student Name:** Đỗ Thị Thùy Trang
+
 > **Student ID:** 2A202600041
+
 > **Date:** 17/04/2026
 
 ---

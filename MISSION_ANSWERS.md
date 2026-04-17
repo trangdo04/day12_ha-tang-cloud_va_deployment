@@ -143,11 +143,10 @@ nginx:
 
 ## Part 3: Cloud Deployment
 
-### Exercise 3.1: Railway Deployment (LIVE ✅)
+### Exercise 3.1: Railway Deployment
 
 **Public URLs:**
 - Railway: https://agent-production-3fc5.up.railway.app
-- Render: https://day12-ha-tang-cloud-va-deployment-crv4.onrender.com
 
 **Deployment Steps (Railway):**
 ```bash
