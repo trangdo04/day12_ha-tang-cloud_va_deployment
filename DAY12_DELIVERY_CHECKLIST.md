@@ -1,6 +1,6 @@
 #  Delivery Checklist — Day 12 Lab Submission
 
-> **Student Name:** _________________________  
+> **Student Name:** Đỗ Thị Thùy Trang
 > **Student ID:** _________________________  
 > **Date:** _________________________
 
@@ -45,8 +45,8 @@ Create a file `MISSION_ANSWERS.md` with your answers to all exercises:
 ## Part 3: Cloud Deployment
 
 ### Exercise 3.1: Railway deployment
-- URL: https://your-app.railway.app
-- Screenshot: [Link to screenshot in repo]
+- URL: https://day12vinaithucchien-production.up.railway.app
+- Screenshot: screenshot\03_railway_production_docs.png
 
 ## Part 4: API Security
 
@@ -108,7 +108,7 @@ Create a file `DEPLOYMENT.md` with your deployed service information:
 # Deployment Information
 
 ## Public URL
-https://your-agent.railway.app
+https://agent-production-3fc5.up.railway.app
 
 ## Platform
 Railway / Render / Cloud Run
