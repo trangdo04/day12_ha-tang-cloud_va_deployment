@@ -1,4 +1,4 @@
-# 📦 Delivery Checklist — Day 12 Lab Submission
+#  Delivery Checklist — Day 12 Lab Submission
 
 > **Student Name:** _________________________  
 > **Student ID:** _________________________  
@@ -6,7 +6,7 @@
 
 ---
 
-## 📋 Submission Requirements
+##  Submission Requirements
 
 Submit a **GitHub repository** containing:
 
@@ -88,15 +88,15 @@ your-repo/
 ```
 
 **Requirements:**
-- ✅ All code runs without errors
-- ✅ Multi-stage Dockerfile (image < 500 MB)
-- ✅ API key authentication
-- ✅ Rate limiting (10 req/min)
-- ✅ Cost guard ($10/month)
-- ✅ Health + readiness checks
-- ✅ Graceful shutdown
-- ✅ Stateless design (Redis)
-- ✅ No hardcoded secrets
+-  All code runs without errors
+-  Multi-stage Dockerfile (image < 500 MB)
+-  API key authentication
+-  Rate limiting (10 req/min)
+-  Cost guard ($10/month)
+-  Health + readiness checks
+-  Graceful shutdown
+-  Stateless design (Redis)
+-  No hardcoded secrets
 
 ---
 
@@ -141,7 +141,7 @@ curl -X POST https://your-agent.railway.app/ask \
 - [Test results](screenshots/test.png)
 ```
 
-## ✅ Pre-Submission Checklist
+##  Pre-Submission Checklist
 
 - [ ] Repository is public (or instructor has access)
 - [ ] `MISSION_ANSWERS.md` completed with all exercises
@@ -156,7 +156,7 @@ curl -X POST https://your-agent.railway.app/ask \
 
 ---
 
-## 🧪 Self-Test
+##  Self-Test
 
 Before submitting, verify your deployment:
 
@@ -183,7 +183,7 @@ done
 
 ---
 
-## 📝 Submission
+##  Submission
 
 **Submit your GitHub repository URL:**
 
@@ -195,18 +195,18 @@ https://github.com/your-username/day12-agent-deployment
 
 ---
 
-## 💡 Quick Tips
+##  Quick Tips
 
-1. ✅ Test your public URL from a different device
-2. ✅ Make sure repository is public or instructor has access
-3. ✅ Include screenshots of working deployment
-4. ✅ Write clear commit messages
-5. ✅ Test all commands in DEPLOYMENT.md work
-6. ✅ No secrets in code or commit history
+1.  Test your public URL from a different device
+2.  Make sure repository is public or instructor has access
+3.  Include screenshots of working deployment
+4.  Write clear commit messages
+5.  Test all commands in DEPLOYMENT.md work
+6.  No secrets in code or commit history
 
 ---
 
-## 🆘 Need Help?
+##  Need Help?
 
 - Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - Review [CODE_LAB.md](CODE_LAB.md)
@@ -215,4 +215,4 @@ https://github.com/your-username/day12-agent-deployment
 
 ---
 
-**Good luck! 🚀**
+**Good luck! **
