@@ -180,7 +180,10 @@ curl http://localhost:8000/ask -X POST \
 ```bash
 docker images my-agent:develop
 ```
-
+```
+REPOSITORY   TAG       IMAGE ID       CREATED              SIZE
+my-agent     develop   7c4c05194460   About a minute ago   1.66GB
+```
 ###  Exercise 2.3: Multi-stage build
 
 ```bash

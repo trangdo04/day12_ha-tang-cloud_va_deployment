@@ -1,15 +1,17 @@
 # Deployment Information
 
 ## Public URL
-https://agent-production-3fc5.up.railway.app
 
+**Railway**:  https://agent-production-3fc5.up.railway.app
+
+**Render**: https://day12-ha-tang-cloud-va-deployment-crv4.onrender.com/
 ## Platform Information
 
-**Platform:** Railway  
+**Platform:** Railway  / Render
 
 ---
 
-## 🚀 Deployment Steps
+## Deployment Steps
 
 ### Deploy Railway
 
@@ -44,13 +46,13 @@ railway domain
 2. Render Dashboard → New → Blueprint
 3. Connect repo → Render đọc `render.yaml`
 4. Set secrets: 
-   - `OPENAI_API_KEY` 
+   - `OPENAI_API_KEY` = your-open-api-key
    - `AGENT_API_KEY` = your-secret-key
 5. Deploy → Nhận URL!
 
 ---
 
-## 🧪 Chạy Local trước khi Deploy
+## Chạy Local trước khi Deploy
 
 ```bash
 # 1. Setup
@@ -92,7 +94,7 @@ curl -X POST http://localhost:8000/ask \
   -d '{"question":"What is deployment?"}'
 ```
 
-## ✅ Kiểm Tra Production Readiness
+## Kiểm Tra Production Readiness
 
 ```bash
 # Chạy script kiểm tra trước khi deploy
@@ -101,20 +103,3 @@ python check_production_ready.py
 # Output: Result: 20/20 checks passed (100%)
 ```
 
----
-
-## 📊 Environment Variables Set
-
-Your Railway project has these variables configured:
-
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `PORT` | `8000` | Auto-set by Railway |
-| `ENVIRONMENT` | `production` | Set for prod behavior |
-| `AGENT_API_KEY` | `***` (secret) | Your API key for clients |
-| `RATE_LIMIT_PER_MINUTE` | `20` | Max requests per user per minute |
-| `DAILY_BUDGET_USD` | `10.0` | Max spend per day |
-| `DEBUG` | `false` | Disable debug mode |
-| `LOG_LEVEL` | `INFO` (or `WARNING`) | Logging level |
-| `REDIS_URL` | Auto from Railway | Built-in Redis |
-| `ALLOWED_ORIGINS` | `*` (or specific domains) | For CORS |
